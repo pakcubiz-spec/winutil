@@ -1,0 +1,41 @@
+name: Build Winutil EXE
+
+on:
+  workflow_dispatch: {}     # boleh run manual dari tab Actions
+  push:
+    tags:
+      - "v*"               # auto-build bila push tag v1.0, v1.1, dll
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build winutil.ps1 (merge semua modul)
+        shell: powershell
+        run: |
+          Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+          ./Compile.ps1
+          Get-Item .\winutil.ps1
+
+      - name: Install PS2EXE
+        shell: powershell
+        run: |
+          Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+          Install-Module -Name ps2exe -Scope CurrentUser -Force
+          Import-Module ps2exe
+
+      - name: Compile to EXE
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path out | Out-Null
+          Invoke-ps2exe -inputFile .\winutil.ps1 -outputFile .\out\winutil.exe -noConsole -requireAdmin
+
+      - name: Upload artifact (hasil .exe)
+        uses: actions/upload-artifact@v4
+        with:
+          name: winutil-exe
+          path: out/winutil.exe
